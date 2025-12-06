@@ -36,3 +36,9 @@ class MediaItem(models.Model):
         verbose_name='Тип медиа',
         choices=MediaType.choices
     )
+
+    class Meta:
+        db_table = 'media_item'
+        verbose_name = 'Медиа объект'
+        verbose_name_plural = 'Медиа объекты'
+

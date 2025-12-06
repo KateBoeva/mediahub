@@ -1,4 +1,5 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.db.models import QuerySet
 
@@ -32,7 +33,7 @@ class UserManager(BaseUserManager):
         return qs.filter(models.Q(email__icontains=q) | models.Q(name__icontains=q))
 
 
-class User(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
 
