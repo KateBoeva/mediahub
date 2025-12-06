@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: sh -c "/wait-for-it.sh db:5432 -- python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    env_file:
+      - service.env
+    depends_on:
+      - db
+    volumes:
+      - .:/mediahub
+
+  db:
+    image: postgres:18-alpine
+    env_file:
+      - service.env
+    environment:
+      TZ: "Europe/Moscow"
+      POSTGRES_DB: mediahub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
