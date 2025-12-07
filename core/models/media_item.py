@@ -42,3 +42,5 @@ class MediaItem(models.Model):
         verbose_name = 'Медиа объект'
         verbose_name_plural = 'Медиа объекты'
 
+    def __str__(self):
+        return f'{self.get_media_type_display()} "{self.title}"'
