@@ -3,6 +3,7 @@ from django.http import JsonResponse, HttpRequest
 
 from core.schemas.media import MediaItemListResponse, MediaItemCreateItem, MediaItemUpdateItem
 from core.services.media import MediaItemService
+from utils.decorators import endpoint
 
 
 class MediaListView(View):
@@ -38,20 +39,9 @@ class MediaRetrieveView(View):
 class MediaCreateView(View):
     service = MediaItemService()
 
-    def post(self, request):
-        data = {
-            "title": request.POST.get("title"),
-            "description": request.POST.get("description"),
-            "media_type": request.POST.get("media_type"),
-            "owner_id": request.user.id,
-        }
-        file = request.FILES.get("file")
-
-        if not file:
-            return JsonResponse({"error": "File is required"}, status=400)
-
-        payload = MediaItemCreateItem(**data)
-
+    @endpoint
+    def post(self, request, payload: MediaItemCreateItem):
+        file = request.FILES['file']
         new_media = self.service.create_media_item(payload, file)
         new_media['file_path'] = request.build_absolute_uri(new_media['file_path'])
 
