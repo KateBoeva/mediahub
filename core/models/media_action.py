@@ -26,6 +26,9 @@ class MediaLike(MediaAction):
         auto_now_add=True
     )
 
+    def __str__(self):
+        return "Лайк от {0} на медиафайл {1}".format(self.user.email, self.media_item.title)
+
     class Meta:
         db_table = 'media_like'
         verbose_name = 'Лайк медиафайла'
@@ -40,6 +43,9 @@ class MediaComment(MediaAction):
         verbose_name='Дата и время комментария',
         auto_now_add=True
     )
+
+    def __str__(self):
+        return "Комментарий от {0} на медиафайл {1}".format(self.user.email, self.media_item.title)
 
     class Meta:
         db_table = 'media_comment'

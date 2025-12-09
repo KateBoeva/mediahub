@@ -23,6 +23,10 @@ class MediaItem(models.Model):
         verbose_name='Дата и время создания',
         auto_now_add=True
     )
+    updated_at = models.DateTimeField(
+        verbose_name='Дата и время изменения',
+        auto_now_add=True
+    )
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

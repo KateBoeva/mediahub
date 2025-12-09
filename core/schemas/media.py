@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 
-class MediaItemListItem(BaseModel):
+class MediaItemDetailItem(BaseModel):
     id: int
     title: str
     description: Optional[str]
@@ -12,4 +12,19 @@ class MediaItemListItem(BaseModel):
 
 
 class MediaItemListResponse(BaseModel):
-    items: List[MediaItemListItem]
+    items: List[MediaItemDetailItem]
+
+
+class MediaItemUpdateItem(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    file_path: str
+    media_type: str
+
+
+class MediaItemCreateItem(BaseModel):
+    title: str
+    description: Optional[str]
+    owner_id: int
+    media_type: int
