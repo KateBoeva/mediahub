@@ -16,10 +16,8 @@ class MediaItemListResponse(BaseModel):
 
 
 class MediaItemUpdateItem(BaseModel):
-    id: int
     title: str
     description: Optional[str]
-    file_path: str
     media_type: str
 
 

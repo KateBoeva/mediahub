@@ -22,12 +22,17 @@ class MediaItemRepo:
         return media_item
 
     def update(self, media_id: int, init: MediaItemUpdateItem, file: Optional[UploadedFile]) -> MediaItem:
-        init_data = init.model_dump()
-        if file:
-            init_data['file'] = file
+        item = MediaItem.objects.get(id=media_id)
 
-        MediaItem.objects.filter(id=media_id).update(**init_data)
-        return self.get_by_id(media_id, init_data['owner_id'])
+        for field, value in init.model_dump().items():
+            setattr(item, field, value)
+
+        if file:
+            item.file.save(file.name, file, save=False)
+
+        item.save()
+
+        return self.get_by_id(media_id, item.owner_id)
 
     def delete(self, media_id: int) -> None:
         MediaItem.objects.filter(id=media_id).delete()

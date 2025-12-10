@@ -29,7 +29,8 @@ class MediaRetrieveView(View):
         media_item['file_path'] = request.build_absolute_uri(media_item['file_path'])
         return JsonResponse(media_item)
 
-    def put(self, request: HttpRequest, media_id: int, payload: MediaItemUpdateItem):
+    @endpoint
+    def post(self, request: HttpRequest, media_id: int, payload: MediaItemUpdateItem):
         file = self.request.FILES['file']
         updated_media = self.service.update_media_item(media_id, payload, file)
         updated_media['file_path'] = request.build_absolute_uri(updated_media['file_path'])
@@ -40,9 +41,9 @@ class MediaCreateView(View):
     service = MediaItemService()
 
     @endpoint
-    def post(self, request, payload: MediaItemCreateItem):
+    def post(self, request: HttpRequest, payload: MediaItemCreateItem):
         file = request.FILES['file']
-        new_media = self.service.create_media_item(payload, file)
+        new_media = self.service.create_media_item(payload, file)  # noqa
         new_media['file_path'] = request.build_absolute_uri(new_media['file_path'])
 
         return JsonResponse(new_media, status=201)
