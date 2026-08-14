@@ -1,13 +1,9 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
-from django.db.models import QuerySet
 
 
 class UserManager(BaseUserManager):
-    def get_queryset(self):
-        return QuerySet(self.model, using=self._db)
-
     def create_user(self, email, password=None):
         if not email:
             raise ValueError('Users must have an email address')
@@ -26,7 +22,7 @@ class UserManager(BaseUserManager):
         return user
 
     def search(self, q):
-        qs = super().get_queryset()
+        qs = self.get_queryset()
         if not q:
             return qs
 

@@ -25,7 +25,7 @@ class MediaItem(models.Model):
     )
     updated_at = models.DateTimeField(
         verbose_name='Дата и время изменения',
-        auto_now_add=True
+        auto_now=True
     )
     owner = models.ForeignKey(
         User,
