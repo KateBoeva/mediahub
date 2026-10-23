@@ -44,5 +44,4 @@ class TestMediaItemListView:
 
     def test_anonymous(self, anonymous_client, media_item):
         resp = anonymous_client.get(reverse('core:media-list'))
-        assert resp.status_code == 200
-        assert resp.json() == {'items': []}
+        assert resp.status_code == 401

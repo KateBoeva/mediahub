@@ -26,7 +26,7 @@ class UserManager(BaseUserManager):
         if not q:
             return qs
 
-        return qs.filter(models.Q(email__icontains=q) | models.Q(name__icontains=q))
+        return qs.filter(email__icontains=q)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
