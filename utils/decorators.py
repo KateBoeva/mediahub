@@ -6,10 +6,12 @@ from pydantic import ValidationError
 from django.http import JsonResponse
 
 
-def endpoint(view_func):
+def with_payload(view_func):
     """
-    Декоратор для вьюх, автоматом вытаскивает pydantic-модель
-    из аннотации параметра payload и прокидывает его в kwargs
+    В post/put/patch валидирует POST+FILES моделью из аннотации
+    payload и кладёт результат в payload
+
+    При ошибке: HTTP 400
     """
 
     sig = inspect.signature(view_func)

@@ -7,22 +7,22 @@ from django.views import View
 from django.http import JsonResponse
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from utils.decorators import endpoint
+from utils.decorators import with_payload
 
 
-class EndpointTestModel(BaseModel):
+class PayloadTestModel(BaseModel):
     title: str
     description: str
 
 
-class EndpointTestView(View):
-    @endpoint
-    def post(self, request, payload: EndpointTestModel):
+class PayloadTestView(View):
+    @with_payload
+    def post(self, request, payload: PayloadTestModel):
         return JsonResponse({"title": payload.title, "desc": payload.description})
 
 
 class WithoutPayloadView(View):
-    def post(self, request, init: EndpointTestModel):
+    def post(self, request, init: PayloadTestModel):
         return JsonResponse({"title": init.title, "desc": init.description})
 
 
@@ -32,7 +32,7 @@ class WithoutPydanticModelView(View):
 
 
 @pytest.mark.django_db
-class TestEndpointDecorator:
+class TestWithPayloadDecorator:
     @pytest.fixture
     def file(self):
         return SimpleUploadedFile("test.txt", b"dummy content")
@@ -46,7 +46,7 @@ class TestEndpointDecorator:
         }
         request = rf.post("/fake-url/", data)
 
-        view = EndpointTestView.as_view()
+        view = PayloadTestView.as_view()
         response = view(request)
 
         assert response.status_code == 200
@@ -58,7 +58,7 @@ class TestEndpointDecorator:
         data = {"title": "Only title", "file": file}
         request = rf.post("/fake-url/", data)
 
-        view = EndpointTestView.as_view()
+        view = PayloadTestView.as_view()
         response = view(request)
 
         assert response.status_code == 400
@@ -71,7 +71,7 @@ class TestEndpointDecorator:
         data = {"title": "Hello", "description": "World"}
         request = rf.post("/fake-url/", data, FILES={"file": file})
 
-        view = EndpointTestView.as_view()
+        view = PayloadTestView.as_view()
         response = view(request)
 
         assert response.status_code == 200
@@ -80,8 +80,8 @@ class TestEndpointDecorator:
 
     def test_without_payload(self, file):
         with pytest.raises(ValueError):
-            endpoint(WithoutPayloadView().post)
+            with_payload(WithoutPayloadView().post)
 
     def test_not_pydantic_payload(self, file):
         with pytest.raises(ValueError):
-            endpoint(WithoutPydanticModelView().post)
+            with_payload(WithoutPydanticModelView().post)

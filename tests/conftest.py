@@ -1,6 +1,5 @@
 import pytest
 
-from django.conf import settings
 from django.test.client import Client
 
 from core.models import User
@@ -35,7 +34,7 @@ def anonymous_client(plain_user):
 
 # фикстура для изменения папки медиа файлов на временную в тестах
 @pytest.fixture(autouse=True)
-def temp_media_dir(tmp_path):
+def temp_media_dir(tmp_path, settings):
     temp_dir = tmp_path / "media"
     temp_dir.mkdir()
     settings.MEDIA_ROOT = temp_dir

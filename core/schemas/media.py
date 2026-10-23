@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional, List
 
+from core.models.media_item import MediaType
+
 
 class MediaItemDetailItem(BaseModel):
     id: int
@@ -17,12 +19,11 @@ class MediaItemListResponse(BaseModel):
 
 class MediaItemUpdateItem(BaseModel):
     title: str
-    description: Optional[str]
-    media_type: str
+    description: Optional[str] = None
+    media_type: MediaType
 
 
 class MediaItemCreateItem(BaseModel):
     title: str
-    description: Optional[str]
-    owner_id: int
-    media_type: int
+    description: Optional[str] = None
+    media_type: MediaType

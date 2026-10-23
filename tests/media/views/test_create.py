@@ -3,6 +3,7 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.urls import reverse
+from model_bakery import baker
 from model_bakery.recipe import Recipe
 
 from core.models import MediaItem
@@ -32,7 +33,6 @@ class TestMediaItemCreateView:
         }
 
     def test_ok(self, user_client, payload, url):
-        payload['owner_id'] = user_client.user.id
         resp = user_client.post(url, data=payload)
         assert resp.status_code == 201
 
@@ -43,4 +43,32 @@ class TestMediaItemCreateView:
         assert actual_item['description'] == payload['description']
         assert actual_item['media_type'] == MediaType(payload['media_type']).name.lower()
         assert actual_item['file_path'].endswith('new_test.jpg')
+        assert MediaItem.objects.get().owner_id == user_client.user.id
 
+    def test_owner_id_in_payload_is_ignored(self, user_client, payload, url):
+        other_user = baker.make('core.User')
+        payload['owner_id'] = other_user.id
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 201
+        assert MediaItem.objects.get().owner_id == user_client.user.id
+
+    def test_without_file(self, user_client, payload, url):
+        del payload['file']
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 400
+        assert MediaItem.objects.count() == 0
+
+    def test_invalid_media_type(self, user_client, payload, url):
+        payload['media_type'] = 999
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 400
+        assert MediaItem.objects.count() == 0
+
+    def test_anonymous(self, anonymous_client, payload, url):
+        resp = anonymous_client.post(url, data=payload)
+
+        assert resp.status_code == 401
+        assert MediaItem.objects.count() == 0
