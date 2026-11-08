@@ -94,6 +94,29 @@ class TestMediaItemUpdateView:
         resp = user_client.post(url, data=payload)
         assert resp.status_code == 400
 
+    def test_without_description_keeps_existing(self, user_client, url, payload, media_item):
+        media_item.description = 'Keep me'
+        media_item.save()
+        del payload['description']
+
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 200
+        assert resp.json()['description'] == 'Keep me'
+
+    @pytest.mark.parametrize('title', ['', 'x' * 256])
+    def test_invalid_title_keeps_file(self, user_client, url, payload, media_item, title):
+        old_name = media_item.file.name
+        payload['title'] = title
+        payload['file'] = SimpleUploadedFile("updated.jpg", b"updated data")
+
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 400
+        media_item.refresh_from_db()
+        assert media_item.file.name == old_name
+        assert media_item.file.storage.exists(old_name)
+
     def test_other_owner(self, user_client, payload):
         other_item = self.media_item_recipe.make()
         resp = user_client.post(reverse('core:media-retrieve', args=(other_item.id,)), data=payload)

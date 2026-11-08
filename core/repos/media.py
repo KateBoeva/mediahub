@@ -1,14 +1,16 @@
 from typing import Optional
 
 from django.core.files.uploadedfile import UploadedFile
+from django.db import DatabaseError
 
 from core.models import MediaItem
+from core.repos.base import BaseDBRepo
 from core.schemas.media import MediaItemCreateItem, MediaItemUpdateItem
 
 
-class MediaItemRepo:
+class MediaItemRepo(BaseDBRepo):
     def list(self, user_id: int):
-        return MediaItem.objects.filter(owner_id=user_id)
+        return MediaItem.objects.filter(owner_id=user_id).order_by('-created_at', '-id')
 
     def get_by_id(self, media_id: int, owner_id: int) -> Optional[MediaItem]:
         return MediaItem.objects.filter(id=media_id, owner_id=owner_id).first()
@@ -28,14 +30,23 @@ class MediaItemRepo:
         if not item:
             return None
 
-        for field, value in init.model_dump().items():
+        for field, value in init.model_dump(exclude_unset=True).items():
             setattr(item, field, value)
 
+        old_file_name = item.file.name
         if file:
-            item.file.delete(save=False)
             item.file.save(file.name, file, save=False)
 
-        item.save()
+        try:
+            item.save()
+        except DatabaseError:
+            if file:
+                item.file.delete(save=False)
+            raise
+
+        if file:
+            self.delete_file_on_commit(item.file.storage, old_file_name)
+
         item.refresh_from_db()
 
         return item
@@ -45,7 +56,7 @@ class MediaItemRepo:
         if not item:
             return False
 
-        item.file.delete(save=False)
         item.delete()
+        self.delete_file_on_commit(item.file.storage, item.file.name)
 
         return True

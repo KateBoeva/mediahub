@@ -67,6 +67,20 @@ class TestMediaItemCreateView:
         assert resp.status_code == 400
         assert MediaItem.objects.count() == 0
 
+    @pytest.mark.parametrize('title', ['', 'x' * 256])
+    def test_invalid_title(self, user_client, payload, url, title):
+        payload['title'] = title
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 400
+        assert MediaItem.objects.count() == 0
+
+    def test_title_max_length(self, user_client, payload, url):
+        payload['title'] = 'x' * 255
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 201
+
     def test_anonymous(self, anonymous_client, payload, url):
         resp = anonymous_client.post(url, data=payload)
 

@@ -10,7 +10,7 @@ migrate:
 logs:
 	docker compose logs -f
 
-TEST_DB_PORT ?= 5434
+TEST_DB_PORT ?= 15434
 export TEST_DB_PORT
 TEST_ENV = POSTGRES_HOST=localhost POSTGRES_PORT=$(TEST_DB_PORT)
 

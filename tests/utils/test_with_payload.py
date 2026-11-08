@@ -66,6 +66,16 @@ class TestWithPayloadDecorator:
         print(resp_data)
         assert "errors" in resp_data
 
+    def test_errors_format(self):
+        request = RequestFactory().post("/fake-url/", {"title": "Only title"})
+
+        response = PayloadTestView.as_view()(request)
+
+        assert response.status_code == 400
+        assert json.loads(response.content)["errors"] == [
+            {"type": "missing", "loc": ["description"], "msg": "Field required"}
+        ]
+
     def test_file_in_payload(self, file):
         rf = RequestFactory()
         data = {"title": "Hello", "description": "World"}

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from core.models.media_item import MediaType
@@ -18,12 +18,12 @@ class MediaItemListResponse(BaseModel):
 
 
 class MediaItemUpdateItem(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=255)
     description: Optional[str] = None
     media_type: MediaType
 
 
 class MediaItemCreateItem(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=255)
     description: Optional[str] = None
     media_type: MediaType

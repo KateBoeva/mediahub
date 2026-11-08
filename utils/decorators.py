@@ -35,7 +35,8 @@ def with_payload(view_func):
             try:
                 payload = model_class(**data)
             except ValidationError as e:
-                return JsonResponse({"errors": e.json()}, status=400)
+                errors = e.errors(include_url=False, include_context=False, include_input=False)
+                return JsonResponse({"errors": errors}, status=400)
 
             kwargs["payload"] = payload
 
