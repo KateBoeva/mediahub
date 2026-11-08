@@ -66,10 +66,14 @@ make test
 
 ## API
 
-All endpoints require an authenticated user.
+Register or log in to get a token, then send it as `Authorization: Bearer <token>`.
+Tokens are valid for 30 days. Only the register and login endpoints work without one.
 
-| Method   | Endpoint             | Description                       |
-|----------|----------------------|-----------------------------------|
+| Method   | Endpoint              | Description                       |
+|----------|-----------------------|-----------------------------------|
+| `POST`   | `/api/auth/register/` | Create an account and get a token |
+| `POST`   | `/api/auth/login/`    | Get a token                       |
+| `POST`   | `/api/auth/logout/`   | Revoke the current token          |
 | `GET`    | `/api/media/`        | List the current user's media     |
 | `POST`   | `/api/media/create/` | Upload a new media file           |
 | `GET`    | `/api/media/<id>/`   | Get a media item                  |
@@ -85,13 +89,13 @@ core/
   schemas/      Pydantic request and response schemas
   services/     Business logic
   repos/        Data access
-utils/          @with_payload decorator, JSON auth mixin
+utils/          @with_payload decorator, token auth mixin
 tests/          pytest tests
 ```
 
 ## Roadmap
 
-- [ ] Authentication API with tokens (registration, login, logout)
+- [x] Authentication API with tokens (registration, login, logout)
 - [ ] Tags, collections, likes and comments (the models already exist)
 - [ ] Pagination for the media list
 - [ ] Partial updates with `PATCH`

@@ -3,6 +3,7 @@ import pytest
 from django.test.client import Client
 
 from core.models import User
+from core.services.auth import AuthService
 
 
 
@@ -20,8 +21,8 @@ def plain_user():
 
 @pytest.fixture
 def user_client(plain_user):
-    client = Client()
-    client.login(username=plain_user.email, password='testpass')
+    token = AuthService().create_token(plain_user.id)['token']
+    client = Client(headers={'Authorization': f'Bearer {token}'})
     client.user = plain_user
 
     return client

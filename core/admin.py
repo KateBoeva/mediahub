@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from core.models import Collection, User, Tag, MediaItem, MediaLike, MediaComment
+from core.models import AuthToken, Collection, User, Tag, MediaItem, MediaLike, MediaComment
 
 
 class CustomUserAdmin(UserAdmin):
@@ -38,6 +38,7 @@ class CustomUserAdmin(UserAdmin):
 
 
 admin.site.register(User, CustomUserAdmin)
+admin.site.register(AuthToken)
 admin.site.register(Tag)
 admin.site.register(MediaItem)
 admin.site.register(MediaLike)
