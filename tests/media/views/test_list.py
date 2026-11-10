@@ -7,11 +7,12 @@ from model_bakery.recipe import Recipe
 
 from core.models import MediaItem
 from core.schemas.media import MediaItemDetailItem
+from tests.files import JPEG_BYTES
 
 
 @pytest.mark.django_db
 class TestMediaItemListView:
-    media_item_recipe = Recipe(MediaItem, file=ContentFile(b"fake data", name="test.jpg"))
+    media_item_recipe = Recipe(MediaItem, file=ContentFile(JPEG_BYTES, name="test.jpg"))
 
     @pytest.fixture
     def media_item(self):
@@ -32,7 +33,8 @@ class TestMediaItemListView:
         assert item['title'] == media_item.title
         assert item['description'] == media_item.description
         assert item['media_type'] == media_item.get_media_type_display()
-        assert item['file_path'].endswith(media_item.file.url)
+        file_url = reverse('core:media-file', args=(media_item.id,))
+        assert item['file_path'].startswith(f'http://testserver{file_url}?token=')
         assert item['created_at'] == media_item.created_at.strftime('%d.%m.%Y %H:%M:%S')
 
     def test_ok_empty_items(self, user_client):

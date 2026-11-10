@@ -1,3 +1,7 @@
+import re
+import uuid
+from pathlib import Path
+
 from django.db import models
 
 from core.models import User
@@ -7,6 +11,18 @@ class MediaType(models.IntegerChoices):
     IMAGE = 1, 'image'
     VIDEO = 2, 'video'
     AUDIO = 3, 'audio'
+
+
+def media_item_upload_to(instance: 'MediaItem', filename: str) -> str:
+    """
+    Кладёт файл под случайным именем в папку владельца,
+    чтобы адрес файла нельзя было угадать по исходному имени
+    """
+    suffix = Path(filename).suffix.lower()
+    if not re.fullmatch(r'\.[a-z0-9]{1,10}', suffix):
+        suffix = ''
+
+    return f'media_items/{instance.owner_id}/{uuid.uuid4().hex}{suffix}'
 
 
 class MediaItem(models.Model):
@@ -34,7 +50,7 @@ class MediaItem(models.Model):
     )
     file = models.FileField(
         verbose_name='Файл медиа',
-        upload_to='media_items/'
+        upload_to=media_item_upload_to
     )
     media_type = models.IntegerField(
         verbose_name='Тип медиа',

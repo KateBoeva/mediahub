@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from core.models import AuthToken, User
 from core.services.auth import AuthService
+from tests.files import JPEG_BYTES
 
 STRONG_PASSWORD = 'S3cure-pass-42'
 
@@ -117,6 +118,51 @@ class TestLoginView:
 
         assert resp.status_code == 400
 
+    @staticmethod
+    def fail_logins(url, email, times, ip='127.0.0.1'):
+        for _ in range(times):
+            resp = Client(REMOTE_ADDR=ip).post(url, data={'email': email, 'password': 'wrong'})
+            assert resp.status_code == 401
+
+    def test_too_many_failures_blocks_even_correct_password(self, url, plain_user, settings):
+        self.fail_logins(url, plain_user.email, settings.LOGIN_FAILURE_LIMIT)
+
+        resp = Client().post(url, data={'email': plain_user.email, 'password': 'testpass'})
+
+        assert resp.status_code == 429
+        assert resp.json() == {'error': 'Too many login attempts, try again later'}
+        assert resp['Retry-After'] == str(int(settings.LOGIN_FAILURE_WINDOW.total_seconds()))
+
+    def test_email_case_does_not_bypass_limit(self, url, plain_user, settings):
+        self.fail_logins(url, plain_user.email.upper(), settings.LOGIN_FAILURE_LIMIT)
+
+        resp = Client().post(url, data={'email': plain_user.email, 'password': 'testpass'})
+
+        assert resp.status_code == 429
+
+    def test_successful_login_resets_counter(self, url, plain_user, settings):
+        self.fail_logins(url, plain_user.email, settings.LOGIN_FAILURE_LIMIT - 1)
+        assert Client().post(url, data={'email': plain_user.email, 'password': 'testpass'}).status_code == 200
+
+        self.fail_logins(url, plain_user.email, settings.LOGIN_FAILURE_LIMIT - 1)
+        assert Client().post(url, data={'email': plain_user.email, 'password': 'testpass'}).status_code == 200
+
+    def test_other_ip_is_not_blocked(self, url, plain_user, settings):
+        self.fail_logins(url, plain_user.email, settings.LOGIN_FAILURE_LIMIT, ip='10.0.0.1')
+
+        resp = Client(REMOTE_ADDR='10.0.0.2').post(url, data={'email': plain_user.email, 'password': 'testpass'})
+
+        assert resp.status_code == 200
+
+    def test_ip_limit_across_emails(self, url, plain_user, settings):
+        settings.LOGIN_FAILURE_IP_LIMIT = 3
+        for i in range(settings.LOGIN_FAILURE_IP_LIMIT):
+            self.fail_logins(url, f'user{i}@test.ru', 1)
+
+        resp = Client().post(url, data={'email': plain_user.email, 'password': 'testpass'})
+
+        assert resp.status_code == 429
+
 
 @pytest.mark.django_db
 class TestLogoutView:
@@ -176,7 +222,7 @@ class TestTokenAuthentication:
         resp = bearer_client(token, enforce_csrf_checks=True).post(reverse('core:media-create'), data={
             'title': 'Title',
             'media_type': 1,
-            'file': SimpleUploadedFile('a.jpg', b'data'),
+            'file': SimpleUploadedFile('a.jpg', JPEG_BYTES),
         })
 
         assert resp.status_code == 201

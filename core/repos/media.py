@@ -19,7 +19,13 @@ class MediaItemRepo(BaseDBRepo):
         init_data = init.model_dump()
         init_data['file'] = file
         init_data['owner_id'] = owner_id
-        media_item = MediaItem.objects.create(**init_data)
+        media_item = MediaItem(**init_data)
+
+        try:
+            media_item.save()
+        except DatabaseError:
+            media_item.file.delete(save=False)
+            raise
 
         return media_item
 

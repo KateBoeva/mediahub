@@ -1,5 +1,6 @@
 import pytest
 
+from django.core.cache import cache
 from django.test.client import Client
 
 from core.models import User
@@ -40,3 +41,11 @@ def temp_media_dir(tmp_path, settings):
     temp_dir.mkdir()
     settings.MEDIA_ROOT = temp_dir
     yield
+
+
+# счётчики неудачных попыток входа лежат в кэше и не должны переходить между тестами
+@pytest.fixture(autouse=True)
+def clear_cache():
+    cache.clear()
+    yield
+    cache.clear()

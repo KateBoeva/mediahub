@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from datetime import timedelta
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / 'service.env')
@@ -25,11 +27,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY environment variable is not set')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['*']
+# При DEBUG и пустом списке Django сам разрешает localhost
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('ALLOWED_HOSTS', '').split(',') if host.strip()]
 
 
 # Application definition
@@ -130,5 +135,11 @@ MEDIA_URL = '/media/'
 AUTH_USER_MODEL = 'core.User'
 AUTH_TOKEN_TTL = timedelta(days=30)
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
+MEDIA_MAX_FILE_SIZE = 1024 * 1024 * 50  # 50 MB
+# Сколько живёт подписанная ссылка на файл медиа
+MEDIA_FILE_URL_TTL = timedelta(hours=1)
+
+# Неудачные попытки входа: лимит для пары IP + email, общий лимит для IP и окно подсчёта
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_FAILURE_IP_LIMIT = 50
+LOGIN_FAILURE_WINDOW = timedelta(minutes=15)

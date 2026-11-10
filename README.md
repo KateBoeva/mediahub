@@ -15,7 +15,9 @@ Each user uploads, views, updates and deletes only their own files.
 - List and view your own media with absolute file URLs
 - Update metadata and replace the file; the old file is removed from storage
 - Delete media together with its file
-- Strict per-user data isolation
+- Strict per-user data isolation, including the files themselves
+- The file content must match `media_type`; size is limited to 50 MB
+- Brute-force protection on login
 
 ## Tech decisions
 
@@ -34,6 +36,22 @@ request contracts explicit, without pulling in a full framework.
 Every query is filtered by `owner_id`, so there is no code path that can load someone else's
 object. A request for another user's media returns `404` rather than `403`, which doesn't
 reveal that the object exists.
+
+**Files are served only through signed links.**
+`MEDIA_ROOT` is never served directly. Files are stored under random names, and `file_path`
+in API responses is a link to `/api/media/<id>/file/` with a token signed with `SECRET_KEY`.
+The link works without the `Authorization` header, so it can go straight into `<img src>`.
+It expires after an hour (`MEDIA_FILE_URL_TTL`) and stops working once the file is replaced.
+
+**File type is checked by content, not by name.**
+The upload is accepted only if its signature (`filetype`) matches `media_type`. The stored
+extension and the `Content-Type` of the response are taken from the content, so a file
+named `evil.html` can't be served as HTML.
+
+**Login attempts are rate limited.**
+Failed logins are counted in the Django cache per IP + email (5 per 15 minutes) and per IP
+(50 per 15 minutes). After that the API responds with `429` and `Retry-After`. There is no
+per-email limit on its own, so nobody can lock another user out of their account.
 
 **Tests run against real PostgreSQL, not SQLite.**
 Production uses Postgres, so tests do too. They run in a separate Compose project
@@ -67,7 +85,8 @@ make test
 ## API
 
 Register or log in to get a token, then send it as `Authorization: Bearer <token>`.
-Tokens are valid for 30 days. Only the register and login endpoints work without one.
+Tokens are valid for 30 days. Only the register and login endpoints, and signed file links,
+work without one.
 
 | Method   | Endpoint              | Description                       |
 |----------|-----------------------|-----------------------------------|
@@ -79,6 +98,7 @@ Tokens are valid for 30 days. Only the register and login endpoints work without
 | `GET`    | `/api/media/<id>/`   | Get a media item                  |
 | `POST`   | `/api/media/<id>/`   | Update a media item               |
 | `DELETE` | `/api/media/<id>/`   | Delete a media item and its file  |
+| `GET`    | `/api/media/<id>/file/?token=…` | Download the file by the signed link from `file_path` |
 
 ## Project structure
 
@@ -99,5 +119,5 @@ tests/          pytest tests
 - [ ] Tags, collections, likes and comments (the models already exist)
 - [ ] Pagination for the media list
 - [ ] Partial updates with `PATCH`
-- [ ] Validate that the uploaded file matches `media_type`
+- [x] Validate that the uploaded file matches `media_type`
 - [ ] OpenAPI / Swagger documentation

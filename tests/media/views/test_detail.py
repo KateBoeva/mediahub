@@ -8,11 +8,12 @@ from model_bakery.recipe import Recipe
 from core.models import MediaItem
 from core.models.media_item import MediaType
 from core.schemas.media import MediaItemDetailItem
+from tests.files import JPEG_BYTES, MP4_BYTES
 
 
 @pytest.mark.django_db
 class TestMediaItemRetrieveView:
-    media_item_recipe = Recipe(MediaItem, file=ContentFile(b"fake data", name="test.jpg"))
+    media_item_recipe = Recipe(MediaItem, file=ContentFile(JPEG_BYTES, name="test.jpg"), media_type=MediaType.IMAGE)
 
     @pytest.fixture
     def media_item(self):
@@ -34,7 +35,8 @@ class TestMediaItemRetrieveView:
         assert item['title'] == media_item.title
         assert item['description'] == media_item.description
         assert item['media_type'] == media_item.get_media_type_display()
-        assert item['file_path'].endswith(media_item.file.url)
+        file_url = reverse('core:media-file', args=(media_item.id,))
+        assert item['file_path'].startswith(f'http://testserver{file_url}?token=')
         assert item['created_at'] == media_item.created_at.strftime('%d.%m.%Y %H:%M:%S')
 
     def test_media_item_does_not_exist(self, user_client):
@@ -54,11 +56,11 @@ class TestMediaItemRetrieveView:
 
 @pytest.mark.django_db
 class TestMediaItemUpdateView:
-    media_item_recipe = Recipe(MediaItem, file=ContentFile(b"fake data", name="test.jpg"))
+    media_item_recipe = Recipe(MediaItem, file=ContentFile(JPEG_BYTES, name="test.jpg"), media_type=MediaType.IMAGE)
 
     @pytest.fixture
     def media_item(self, user_client):
-        return self.media_item_recipe.make(owner=user_client.user, media_type=MediaType.IMAGE)
+        return self.media_item_recipe.make(owner=user_client.user)
 
     @pytest.fixture
     def url(self, media_item):
@@ -69,7 +71,7 @@ class TestMediaItemUpdateView:
         return {
             'title': 'Updated Media',
             'description': 'Updated Description',
-            'media_type': MediaType.VIDEO.value,
+            'media_type': MediaType.IMAGE.value,
         }
 
     def test_ok_without_file(self, user_client, url, payload, media_item):
@@ -79,15 +81,47 @@ class TestMediaItemUpdateView:
         item = resp.json()
         assert item['title'] == payload['title']
         assert item['description'] == payload['description']
-        assert item['media_type'] == MediaType.VIDEO.label
-        assert item['file_path'].endswith(media_item.file.url)
+        assert item['media_type'] == MediaType.IMAGE.label
+        old_name = media_item.file.name
+        media_item.refresh_from_db()
+        assert media_item.file.name == old_name
 
-    def test_ok_with_file(self, user_client, url, payload):
-        payload['file'] = SimpleUploadedFile("updated.jpg", b"updated data")
+    def test_ok_with_file(self, user_client, url, payload, media_item):
+        old_name = media_item.file.name
+        payload['file'] = SimpleUploadedFile("updated.jpg", JPEG_BYTES)
         resp = user_client.post(url, data=payload)
 
         assert resp.status_code == 200
-        assert resp.json()['file_path'].endswith('updated.jpg')
+        media_item.refresh_from_db()
+        assert media_item.file.name != old_name
+        assert resp.json()['file_path'].startswith(f'http://testserver{url}file/?token=')
+
+    def test_change_type_with_matching_file(self, user_client, url, payload, media_item):
+        payload['media_type'] = MediaType.VIDEO.value
+        payload['file'] = SimpleUploadedFile("clip.mp4", MP4_BYTES)
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 200
+        assert resp.json()['media_type'] == MediaType.VIDEO.label
+
+    def test_change_type_without_file_must_match_stored_file(self, user_client, url, payload, media_item):
+        payload['media_type'] = MediaType.VIDEO.value
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 400
+        assert resp.json() == {'errors': {'file': 'File is not a valid video'}}
+        media_item.refresh_from_db()
+        assert media_item.media_type == MediaType.IMAGE
+
+    def test_file_does_not_match_media_type_keeps_old_file(self, user_client, url, payload, media_item):
+        old_name = media_item.file.name
+        payload['file'] = SimpleUploadedFile("clip.mp4", MP4_BYTES)
+        resp = user_client.post(url, data=payload)
+
+        assert resp.status_code == 400
+        media_item.refresh_from_db()
+        assert media_item.file.name == old_name
+        assert media_item.file.storage.exists(old_name)
 
     def test_invalid_data(self, user_client, url, payload):
         del payload['title']
@@ -108,7 +142,7 @@ class TestMediaItemUpdateView:
     def test_invalid_title_keeps_file(self, user_client, url, payload, media_item, title):
         old_name = media_item.file.name
         payload['title'] = title
-        payload['file'] = SimpleUploadedFile("updated.jpg", b"updated data")
+        payload['file'] = SimpleUploadedFile("updated.jpg", JPEG_BYTES)
 
         resp = user_client.post(url, data=payload)
 
@@ -132,7 +166,7 @@ class TestMediaItemUpdateView:
 
 @pytest.mark.django_db
 class TestMediaItemDeleteView:
-    media_item_recipe = Recipe(MediaItem, file=ContentFile(b"fake data", name="test.jpg"))
+    media_item_recipe = Recipe(MediaItem, file=ContentFile(JPEG_BYTES, name="test.jpg"), media_type=MediaType.IMAGE)
 
     @pytest.fixture
     def media_item(self, user_client):

@@ -1,10 +1,11 @@
+from django.conf import settings
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from core.schemas.auth import LoginItem, RegisterItem
-from core.services.auth import AuthService
+from core.services.auth import AuthService, TooManyLoginAttempts
 from utils.decorators import with_payload
 from utils.mixins import LoginRequiredJsonMixin
 
@@ -28,7 +29,13 @@ class LoginView(View):
 
     @with_payload
     def post(self, request: HttpRequest, payload: LoginItem):
-        token = self.service.login(payload)
+        try:
+            token = self.service.login(payload, request.META['REMOTE_ADDR'])
+        except TooManyLoginAttempts:
+            response = JsonResponse({'error': 'Too many login attempts, try again later'}, status=429)
+            response['Retry-After'] = int(settings.LOGIN_FAILURE_WINDOW.total_seconds())
+            return response
+
         if not token:
             return JsonResponse({'error': 'Invalid email or password'}, status=401)
 

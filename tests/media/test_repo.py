@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from pathlib import Path
 from unittest import mock
@@ -5,7 +6,7 @@ from unittest import mock
 import pytest
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import DataError
+from django.db import DataError, transaction
 from django.utils import timezone
 
 from model_bakery.recipe import Recipe
@@ -15,6 +16,7 @@ from core.models import MediaItem
 from core.models.media_item import MediaType
 from core.repos.media import MediaItemRepo
 from core.schemas.media import MediaItemCreateItem, MediaItemUpdateItem
+from tests.files import JPEG_BYTES
 
 
 @pytest.mark.django_db
@@ -79,9 +81,12 @@ class TestMediaItemRepo:
     def test_update_with_file(self, repo, media_item):
         init = MediaItemUpdateItem(title='Updated', media_type=MediaType.IMAGE)
         file = SimpleUploadedFile("updated.jpg", b"updated data")
+        old_name = media_item.file.name
         item = repo.update(media_id=media_item.id, owner_id=media_item.owner_id, init=init, file=file)
 
-        assert item.file.name.endswith('updated.jpg')
+        assert item.file.name != old_name
+        assert item.file.name.startswith(f'media_items/{media_item.owner_id}/')
+        assert item.file.name.endswith('.jpg')
 
     def test_update_without_description_keeps_existing(self, repo, media_item):
         media_item.description = 'Keep me'
@@ -126,7 +131,7 @@ class TestMediaItemRepo:
         media_item.refresh_from_db()
         assert media_item.file.name == old_name
         # новый файл не должен оставаться на диске
-        assert storage.listdir('media_items')[1] == [Path(old_name).name]
+        assert storage.listdir(str(Path(old_name).parent))[1] == [Path(old_name).name]
 
     def test_update_other_owner(self, repo, media_item, plain_user):
         init = MediaItemUpdateItem(title='Updated', media_type=MediaType.IMAGE)
@@ -187,3 +192,27 @@ class TestMediaItemRepo:
 
         with pytest.raises(ValidationError):
             repo.create(init=MediaItemCreateItem(**init), file=file, owner_id=plain_user.id)
+
+    def test_create_db_error_removes_file(self, repo, plain_user, settings):
+        # слишком длинный title обходит pydantic и падает уже в Postgres, после записи файла на диск
+        init = MediaItemCreateItem.model_construct(title='x' * 300, description=None, media_type=MediaType.IMAGE)
+        file = SimpleUploadedFile("test.jpg", JPEG_BYTES)
+
+        with pytest.raises(DataError), transaction.atomic():
+            repo.create(init=init, file=file, owner_id=plain_user.id)
+
+        assert MediaItem.objects.count() == 0
+        assert [path for path in Path(settings.MEDIA_ROOT).rglob('*') if path.is_file()] == []
+
+    @pytest.mark.parametrize('filename, suffix', [
+        ('photo.JPG', '.jpg'),
+        ('no_extension', ''),
+        ('weird.ext with spaces', ''),
+    ])
+    def test_create_stores_file_under_random_name(self, repo, plain_user, filename, suffix):
+        init = MediaItemCreateItem(title='Test Media', media_type=MediaType.IMAGE)
+        item = repo.create(init=init, file=SimpleUploadedFile(filename, JPEG_BYTES), owner_id=plain_user.id)
+
+        directory, name = item.file.name.rsplit('/', 1)
+        assert directory == f'media_items/{plain_user.id}'
+        assert re.fullmatch(rf'[0-9a-f]{{32}}{re.escape(suffix)}', name)
